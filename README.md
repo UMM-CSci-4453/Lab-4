@@ -29,20 +29,20 @@ We return to modifying the tables we made in lab 3.  Keeping in mind what you no
 The next level of understanding (this is  the first one you learn *after* Magic Missile [^dnd]) comes from the `ORDER BY` 
 clause.  As you might expect, this controls the order of the entries in the table.  Try these:
 
-```
+```sql
 SELECT * FROM inventory ORDER BY item;
 SELECT * FROM inventory order by amount;
 ```
 	
 It works with more complicated queries too:
 
-````
+````sql
 SELECT * FROM inventory, prices WHERE inventory.id=prices.id ORDER BY unit;
 ````
 	
 Additionally, just on the off chance you have enough entries in your tables for this to make sense, you can order by more than one column:
 
-````
+````sql
 SELECT * FROM inventory, prices WHERE inventory.id=prices.id ORDER BY unit, item;
 ````
 
@@ -52,14 +52,16 @@ The next clause on our magical mystery tour is the GROUP BY clause (now we're at
 
 SOME functions are designed to work with **aggregates**.  Try these two commands:
 
-```
+```sql
 SELECT * FROM poorDesign;
 SELECT comboName,count(*) AS count FROM poorDesign GROUP BY comboCode;
 ```
 
 There are several aggregate functions, but the mariaDB manuals certainly doesn't make it easy to figure out exactly what they are.  [The list from the mySQL documentation](http://dev.mysql.com/doc/refman/5.7/en/group-by-functions.html) is perhaps more useful. I checked them and they all work.  You should try a few.  Pay attention to the difference between 
 
-```count(*)`, `count(<col name>)` and `count(DISTINCT <col name>)```
+```
+count(*)`, `count(<col name>)` and `count(DISTINCT <col name>)
+```
 
 These differences are subtle, but useful.
 
@@ -67,7 +69,7 @@ These differences are subtle, but useful.
 
 Here's something a bit more interesting... try these:
 
-```
+```sql
 SELECT comboCode, count(*) FROM poorDesign WHERE item >=3 GROUP BY comboCode;
 SELECT comboCode, count(*) FROM poorDesign GROUP BY comboCode;
 ```
@@ -78,7 +80,7 @@ And of course, by saying that, I've highlighted what I wanted to point out... na
 
 Now what happens if we want to restrict the `GROUPS` that we see?  That's where the `HAVING` clause comes into play.  It controls what GROUPS are displayed.... and even cooler, it can use aggregate functions of its own. Here's a perfectly valid command (which may, or may not, produce anything interesting – depending upon the contents of your tables):
 
-```
+```sql
 SELECT comboCode, count(*) FROM poorDesign GROUP BY comboCode HAVING sum(comboCode)>3;
 ```
 
@@ -94,7 +96,7 @@ And with those pieces in place, go through and do these tutorials:
 
 So... next level are subqueries (we're looking at Wizard's Eye here).  Here's an example:
 
-```
+```sql
 SELECT * FROM inventory WHERE id IN (SELECT item FROM poorDesign);
 ```
 Notice the parenthesis and the `IN` keyword (Note:  `IN` is *not* required to make the subquery work).  Notice that the subquery is in parenthesis.
@@ -104,26 +106,26 @@ And also this: <http://en.wikipedia.org/wiki/Correlated_subquery>
 
 Now try this, rather stupid, example of a **correlated subquery**:
 
-```
+```sql
 SELECT (SELECT unit FROM inventory WHERE inventory.id=bob.id) FROM inventory AS bob;
 ```
 
 The key to understanding what is happening is to realize that for EVERY row in the outer `SELECT` statement the INNER query is run.  In order for this sort of nested command to work correctly the inner `SELECT` needs to return **one value**.  This might make things a bit clearer:
 
-```
+```sql
 SELECT item,unit,amount,(SELECT unit FROM inventory WHERE inventory.id=bob.id) AS sub 
    FROM inventory AS bob;
 ```
 
 Pay special attention to giving aliases to the table names.  The outer query and inner query need some sort of common reference to be correlated… of course they don't HAVE to be correlated:
 
-```
+```sql
 SELECT item,unit,amount,(SELECT 'bob' ) AS sub FROM inventory AS bob;
 ```
 
 This sort of thing is useful for including aggregate information:
 
-```
+```sql
 SELECT item,unit,amount,(SELECT avg(amount) FROM inventory WHERE unit=bob.unit GROUP by unit) AS sub FROM inventory AS bob;
 ```
 
@@ -131,13 +133,13 @@ SELECT item,unit,amount,(SELECT avg(amount) FROM inventory WHERE unit=bob.unit G
 
 So far we have been looking at various ways to combine columns of tables. We can also use functions that transform the contents of a column, or use a function to calculate a value derived from the value of several different columns:
 
-```
+```sql
 SELECT concat(item,unit) AS together FROM inventory;
 ```
 
 But what if we want to merge ROWS? That's where `UNION` comes in:
 
-```
+```sql
 SELECT * FROM inventory LEFT JOIN prices ON inventory.id=prices.id;
 SELECT * FROM inventory RIGHT JOIN prices ON inventory.id=prices.id;
 	
@@ -147,7 +149,7 @@ SELECT * FROM inventory LEFT JOIN prices ON inventory.id=prices.id UNION
 	
 Pretty spiffy isn't it… and it really DOES act like the union… there were a few rows shared by both of the component queries and they didn't show up more than once in the final output.  You can get around this behavior (which can matter sometimes by adding the option keyword ALL:
 
-```
+```sql
 SELECT * FROM inventory LEFT JOIN prices ON inventory.id=prices.id UNION ALL
     SELECT * FROM inventory RIGHT JOIN prices ON inventory.id=prices.id;
 ```
@@ -215,13 +217,15 @@ In MariaDB, indexes come in three primary forms:
 **B-trees** are a data-structure (perhaps more accurately a family of data-structures) that were designed to optimize typical data-base style manipulations; lookup data is stored in a way that tries to efficiently use relatively slow physical disk access and minimize the time spent necessary to keep the tree's order in place.  Lookups are `O(log n)`:  For more information check out the [wikipedia page on B-trees](https://en.wikipedia.org/wiki/B-tree).  I am **not** expecting you to know all the ins-and-outs, but it is worth having an idea of what's going on.  For those of you that have had Algorithms, your text from that class (CLSR) has a good writeup on B-Trees.  B-tree indexes are used for column comparisons using the >, >=, =, >=, < or BETWEEN operators, as well as for LIKE comparisons that begin with a constant.
 For example, the query 
 
-```
+```sql
 SELECT * FROM Employees WHERE First_Name LIKE 'Maria%'
 ```
 
 can make use of a B-tree index, while 
 
-```SELECT * FROM Employees WHERE First_Name LIKE '%aria'```
+```sql
+SELECT * FROM Employees WHERE First_Name LIKE '%aria'
+```
 cannot.
 
 B-tree indexes also permit leftmost prefixing for searching of rows.
@@ -247,7 +251,7 @@ text files called `rndA` and `rndB`. Both will contain two columns of random int
 and each will be 2000 lines long. Since I'm not 100% certain what we have on-hand we'll just use stock
 commands:
 
-```{bash}
+```bash
 for i in `seq 1 2000`;
 do
  echo "scale=0; $RANDOM/32.767"|bc
@@ -260,14 +264,14 @@ Now repeat for `col2A`, `col1B`, and `col2B`.
 
 At this point you should have 4 files: col1A, col1B, col2A, col2B.  Now we are going to use them to make the files  `randA` and `randB`:
 
-```{bash}
+```bash
 paste col1A col2A > randA
 paste col1B col2B > randB
 ```
 
 Now each group should make two **TABLES** `randA` and `randB` with columns A and B both of which contain integers and no primary key. Then use
 
-```{sql}
+```sql
 LOAD DATA LOCAL INFILE 'randA' INTO TABLE randA;
 ```
 
@@ -279,7 +283,7 @@ seconds for me)
 
 Now preface that with EXPLAIN:
 
-```{sql}
+```sql
 EXPLAIN SELECT * FROM randA WHERE A BETWEEN 1 AND 10;
 ```
 
@@ -288,7 +292,7 @@ Pay attention to the rows value.
 Now try this one (it took me FAR too long to come up with a query that confuses the built-in optimizer
 that MariaDB uses):
 
-```{sql}
+```sql
 SELECT count(*) FROM randA, randB, randA AS C 
    WHERE (randA.A<randB.A OR randA.A > randB.B) AND
          C.B=randB.B;
@@ -298,7 +302,7 @@ This one takes some time to run... so this is a good time **in another terminal*
 
 I got tired after about 5 minutes Now add indices to the relevant columns (well... all of them)
 
-```{sql}
+```sql
 ALTER TABLE randA ADD INDEX A (A);
 ALTER TABLE randB ADD INDEX A (A);
 ALTER TABLE randA ADD INDEX B (B);
@@ -309,7 +313,7 @@ Now run the same query again (mine was MUCH faster the second time-- about 5 sec
 After you've run it a second time, preface it with `EXPLAIN` and examine the rows. Now go back, remove
 the keys and run it again (just to make sure it's not a side effect of caching):
 
-```{sql}
+```sql
 ALTER TABLE randA DROP INDEX A;
 ALTER TABLE randB DROP INDEX A;
 ALTER TABLE randA DROP INDEX B;
@@ -328,7 +332,7 @@ SELECT count(*) FROM randA, randB, randA AS C
 Now, let's drop the tables and recreate them (this time with the keys). Then we'll fill the data (our data
 set is so small this won't make much of a difference-- but it's good for you to know how to do this):
 
-```{sql}
+```sql
 DROP TABLE randA; DROP TABLE randB;
 ```
 
@@ -336,13 +340,13 @@ Now recreate them, but this time with indexes from the beginning (hint:  that's 
 
 Now fill the first one without disabling the indexes:
 
-```{sql}
+```sql
 LOAD DATA LOCAL INFILE 'randA' INTO TABLE randA;
 ```
 
 Before filling the second one, disable the keys:
 
-```{sql}
+```sql
 ALTER TABLE randB DISABLE KEYS;
 LOAD DATA LOCAL INFILE 'randB' INTO TABLE randB;
 ALTER TABLE randB ENABLE KEYS;
@@ -360,14 +364,14 @@ We have already seen how to use `UNION` to combine the results of two queries wi
 
 First make sure these toy queries don't return anything too long:
 
-```{sql}
+```sql
 SELECT * FROM randA where A BETWEEN 2 AND 9;
 SELECT * FROM randB where B BETWEEN 2 AND 9;
 ```
 
 Now join them into one:
 
-```{sql}
+```sql
 SELECT * FROM randA WHERE A BETWEEN 2 AND 9 
 UNION 
 SELECT * FROM randB where B BETWEEN 2 AND 9;
@@ -375,7 +379,7 @@ SELECT * FROM randB where B BETWEEN 2 AND 9;
 
 Now try this:
 
-```{sql}
+```sql
 SELECT * FROM randA WHERE A BETWEEN 2 AND 9 
 UNION 
 SELECT * FROM randA where A BETWEEN 2 AND 9;
@@ -387,7 +391,7 @@ allowed) – in other words the output is, by default, at least in Type 1 Normal
 
 You can force it to include everything like this:
 
-```{sql}
+```sql
 SELECT * FROM randA where A BETWEEN 2 AND 9 
 UNION ALL 
 SELECT * FROM randA where A BETWEEN 2 AND 9;
@@ -396,7 +400,7 @@ SELECT * FROM randA where A BETWEEN 2 AND 9;
 If you are using `UNION`, then you are allowed one `ORDER BY` clause and it must come AFTER the last `SELECT` (no
 ordering the pieces then joining them together). This will work:
 
-```{sql}
+```sql
 SELECT * FROM randA where A BETWEEN 2 AND 9 
 UNION ALL 
 SELECT * FROM randA where A BETWEEN 2 AND 9 
